@@ -22,7 +22,7 @@ app.add_middleware(
 # Initialize the embedder
 embedder = None
 
-@app.post("/upload")
+@app.post("/upload ")
 async def upload_file(
     file: UploadFile = File(...),
     index_name: str = Form(...)
