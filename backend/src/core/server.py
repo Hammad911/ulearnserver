@@ -6,7 +6,7 @@ import os
 import json
 from typing import Optional
 import asyncio
-from core.embedder import EnhancedBookEmbedder
+from .embedder import EnhancedBookEmbedder
 
 app = FastAPI()
 
