@@ -45,14 +45,17 @@ async def upload_file(
         async def process_file():
             try:
                 # Process the file and yield progress updates
-                async for progress in embedder.process_file(file_path):
-                    yield f"data: {json.dumps(progress)}\n\n"
+                book_id = embedder.process_document(file_path)
+                if book_id:
+                    yield f"data: {json.dumps({'status': 'processing', 'book_id': book_id})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'error': 'Failed to process document'})}\n\n"
                 
                 # Clean up the uploaded file
                 os.remove(file_path)
                 
                 # Send completion message
-                yield f"data: {json.dumps({'status': 'complete'})}\n\n"
+                yield f"data: {json.dumps({'status': 'complete', 'book_id': book_id})}\n\n"
             except Exception as e:
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
         
@@ -76,7 +79,7 @@ async def search(
         elif not embedder:
             raise HTTPException(status_code=400, detail="No index selected")
         
-        results = await embedder.search(query)
+        results = embedder.semantic_search(query)
         return results
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -93,7 +96,7 @@ async def generate_mcq(
         elif not embedder:
             raise HTTPException(status_code=400, detail="No index selected")
         
-        mcqs = await embedder.generate_mcqs(query)
+        mcqs = embedder.search_mcqs(query)
         return mcqs
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
