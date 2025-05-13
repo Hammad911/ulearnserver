@@ -26,8 +26,8 @@ export async function POST(request: Request): Promise<Response> {
     apiFormData.append('file', file);
     apiFormData.append('index_name', indexName);  // Note: using snake_case for FastAPI
 
-    // Forward the request to the FastAPI server
-    const apiUrl = process.env.FASTAPI_URL || 'http://localhost:8000';
+    // Use NEXT_PUBLIC_API_URL for the backend URL
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
     const response = await fetch(`${apiUrl}/upload`, {
       method: 'POST',
       body: apiFormData,

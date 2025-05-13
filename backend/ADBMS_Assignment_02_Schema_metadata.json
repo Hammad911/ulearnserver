@@ -1,0 +1,24 @@
+{
+  "title": "",
+  "chapters": [],
+  "sections": {
+    "null": [
+      "Institutions",
+      "Departments",
+      "Faculty",
+      "Students",
+      "GEC_ID\u00a0(PK, FK -> GEC.GEC_ID, INT)",
+      "GEC_ID\u00a0(FK -> GEC.GEC_ID, INT, NOT NULL)",
+      "Courses",
+      "Theses",
+      "Publications",
+      "DOI\u00a0(VARCHAR(255), NULL, UNIQUE)",
+      "Scenarios"
+    ]
+  },
+  "mcq_sections": {},
+  "metadata": {
+    "total_pages": 9,
+    "extracted_at": 1747134272.004709
+  }
+}
