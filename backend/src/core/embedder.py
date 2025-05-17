@@ -402,6 +402,7 @@ class EnhancedBookEmbedder:
     def _initialize_index(self):
         """Initialize Pinecone index"""
         try:
+            # Initialize Pinecone client
             # List existing indexes
             existing_indexes = [idx.name for idx in pc.list_indexes()]
             print(f"Existing indexes: {existing_indexes}")
