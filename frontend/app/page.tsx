@@ -1,8 +1,9 @@
 'use client'
 
-import React, { useState } from 'react'
-import { BookOpen, Brain } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { BookOpen, Brain, LogOut } from 'lucide-react'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 
 const Response = ({ content }: { content: string }) => {
   const parseResponse = (text: string) => {
@@ -54,10 +55,69 @@ const Response = ({ content }: { content: string }) => {
 };
 
 export default function Home() {
+  const router = useRouter();
   const [messages, setMessages] = useState<{ role: 'user' | 'ai'; content: string }[]>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // Check authentication on component mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/login');
+    }
+  }, [router]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    router.push('/login');
+  };
+
+  const handleNavigation = (path: string) => {
+    window.location.href = path;
+  };
+
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+    setMessages(msgs => [...msgs, { role: 'user', content: input }]);
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('http://localhost:8000/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ 
+          message: input, 
+          token: localStorage.getItem('token') || '' 
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMessages(msgs => [...msgs, { role: 'ai', content: data.response }]);
+      } else {
+        setError(data.detail || 'Chat failed');
+      }
+    } catch (err) {
+      setError('Network error');
+    } finally {
+      setLoading(false);
+      setInput('');
+    }
+  };
+
   return (
     <div className="flex flex-col items-center justify-center p-4 min-h-screen">
       <div className="max-w-4xl w-full flex flex-col items-center">
+        <div className="w-full flex justify-end mb-4">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Logout</span>
+          </button>
+        </div>
         <Image src="/High Res Logo Ulearn Black.svg" alt="ULearn Logo" width={320} height={140} className="mb-6 mt-8" />
         <h1 className="text-4xl font-extrabold text-center mb-8 tracking-tight" style={{ color: '#1e88a8' }}>
           ULearn Chatbot
@@ -65,14 +125,14 @@ export default function Home() {
         <p className="text-lg text-gray-700 mb-8 font-light">Investing in future</p>
         <div className="flex flex-col sm:flex-row gap-8 justify-center mt-2 mb-8">
           <button
-            onClick={() => window.location.href = '/upload'}
+            onClick={() => handleNavigation('/upload')}
             className="py-4 px-10 rounded-2xl font-semibold flex items-center justify-center gap-3 transition-all duration-200 bg-gradient-to-r from-[#e0f2fe] via-[#bae6fd] to-[#7dd3fc] text-[#2563eb] shadow-md hover:brightness-110 hover:scale-105 text-lg"
           >
             <BookOpen className="w-6 h-6" />
             <span>Upload Textbook</span>
           </button>
           <button
-            onClick={() => window.location.href = '/subjects'}
+            onClick={() => handleNavigation('/subjects')}
             className="py-4 px-10 rounded-2xl font-semibold flex items-center justify-center gap-3 transition-all duration-200 bg-gradient-to-r from-[#a5f3fc] via-[#e0f2fe] to-[#bae6fd] text-[#0e7490] shadow-md hover:brightness-110 hover:scale-105 text-lg"
           >
             <BookOpen className="w-6 h-6" />
@@ -100,6 +160,24 @@ export default function Home() {
             </div>
           </div>
         ))}
+        <div className="flex w-full gap-2 mt-4">
+          <input
+            className="flex-1 p-2 rounded border"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            placeholder="Type your message..."
+            onKeyDown={e => { if (e.key === 'Enter') sendMessage(); }}
+            disabled={loading}
+          />
+          <button
+            className="bg-blue-600 text-white rounded px-4 py-2"
+            onClick={sendMessage}
+            disabled={loading || !input.trim()}
+          >
+            {loading ? 'Sending...' : 'Send'}
+          </button>
+        </div>
+        {error && <div className="text-red-600 text-sm mt-2">{error}</div>}
       </main>
     </div>
   );
