@@ -1,3 +1,4 @@
+
 'use client'
 import { useState } from "react";
 import { Inter } from "next/font/google";
@@ -6,7 +7,13 @@ import Sidebar from "@/components/sidebar";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
 
+
+
+
 const inter = Inter({ subsets: ["latin"] });
+
+
+
 
 export default function RootLayout({
   children,

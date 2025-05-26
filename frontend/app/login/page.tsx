@@ -22,7 +22,7 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch('https://tutor.ulearnlms.com/vle/rest/app/login', {
+      const res = await fetch("//api", {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ username, password, type }),
