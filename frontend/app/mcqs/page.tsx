@@ -3,9 +3,10 @@
 import React from 'react'
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Send, ArrowRight, CheckCircle2, XCircle } from 'lucide-react'
+import { Send, ArrowRight, CheckCircle2, XCircle, History } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import QuizHistory from '../components/QuizHistory'
 
 interface MCQ {
   question: string;
@@ -21,6 +22,23 @@ interface QuizState {
   score: number;
 }
 
+// Add new interface for quiz submission
+interface QuizSubmission {
+  subject: string;
+  topic: string;
+  title: string;
+  questions: {
+    question_text: string;
+    options: {
+      option_text: string;
+      is_correct: boolean;
+    }[];
+    user_answer: string;
+  }[];
+  score: number;
+  email: string;
+}
+
 function MCQPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -29,6 +47,9 @@ function MCQPageInner() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [mcqCount, setMcqCount] = useState('5');
+  const [currentTopic, setCurrentTopic] = useState('');
+  const [userId, setUserId] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
   const [quizState, setQuizState] = useState<QuizState>({
     mcqs: [],
     currentQuestion: 0,
@@ -36,6 +57,16 @@ function MCQPageInner() {
     showResults: false,
     score: 0
   });
+  const [showHistory, setShowHistory] = useState(false);
+
+  useEffect(() => {
+    const storedUserId = localStorage.getItem('userId');
+    const storedEmail = localStorage.getItem('email');
+    console.log('Retrieved userId from localStorage:', storedUserId);
+    console.log('Retrieved email from localStorage:', storedEmail);
+    setUserId(storedUserId);
+    setEmail(storedEmail);
+  }, []);
 
   useEffect(() => {
     if (!subject) {
@@ -68,6 +99,7 @@ function MCQPageInner() {
       }
 
       const mcqs = parseMCQs(data.response);
+      setCurrentTopic(data.topic);
       setQuizState({
         mcqs,
         currentQuestion: 0,
@@ -119,16 +151,17 @@ function MCQPageInner() {
     }));
   };
 
-  const handleNextQuestion = () => {
+  const handleNextQuestion = async () => {
     if (quizState.currentQuestion < quizState.mcqs.length - 1) {
       setQuizState(prev => ({
         ...prev,
         currentQuestion: prev.currentQuestion + 1
       }));
     } else {
-      // Calculate score
+      // Use the latest selectedAnswers for score calculation
+      const finalSelectedAnswers = [...quizState.selectedAnswers];
       const score = quizState.mcqs.reduce((acc, mcq, index) => {
-        return acc + (quizState.selectedAnswers[index] === mcq.correctAnswer ? 1 : 0);
+        return acc + (finalSelectedAnswers[index] === mcq.correctAnswer ? 1 : 0);
       }, 0);
 
       setQuizState(prev => ({
@@ -136,6 +169,41 @@ function MCQPageInner() {
         showResults: true,
         score
       }));
+
+      // Prepare quiz submission data
+      const quizSubmission: QuizSubmission = {
+        subject: subject || '',
+        topic: currentTopic,
+        title: `${subject} Quiz`,
+        questions: quizState.mcqs.map((mcq, index) => ({
+          question_text: mcq.question,
+          options: mcq.options.map(opt => ({
+            option_text: opt,
+            is_correct: opt === mcq.correctAnswer
+          })),
+          user_answer: finalSelectedAnswers[index]
+        })),
+        score: score,
+        email: email || ''
+      };
+
+      // Save quiz results to database
+      try {
+        const response = await fetch('/api/quiz/save', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-id': userId || ''
+          },
+          body: JSON.stringify(quizSubmission),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to save quiz results');
+        }
+      } catch (error) {
+        console.error('Error saving quiz results:', error);
+      }
     }
   };
 
@@ -160,6 +228,11 @@ function MCQPageInner() {
         <h1 className="text-3xl font-bold text-center mb-8 capitalize" style={{ color: '#1e88a8' }}>
           {subject} MCQ Generator
         </h1>
+
+       
+
+     
+
         {!quizState.mcqs.length ? (
           <form onSubmit={handleSubmit} className="mb-8 w-full">
             <div className="flex flex-col gap-4">

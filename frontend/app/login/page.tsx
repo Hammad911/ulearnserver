@@ -22,7 +22,7 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch("//api", {
+      const res = await fetch("https://tutor.ulearnlms.com/vle/rest/app/login", {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ username, password, type }),
@@ -34,15 +34,27 @@ export default function LoginPage() {
         throw new Error(data.detail || 'Login failed');
       }
       
+      // Check if the user type matches the requested type
+      // const serverUserType = data.userType;
+      // const expectedType = type === 'student'? 'S' : 'A';
+      
+      // if (serverUserType && serverUserType !== expectedType) {
+      //   const actualRole = serverUserType === 'S' ? 'student' : 'admin';
+      //   throw new Error(`You are registered as a ${actualRole}. Please select the correct user type.`);
+      // }
+      
       if (data && data.token) {
         localStorage.setItem('token', data.token);
-        router.push('/');
-      } else if (data && data.data && data.data.token) {
-        localStorage.setItem('token', data.data.token);
+        localStorage.setItem('userId', data.userId);
+        localStorage.setItem('email', data.email);
+        localStorage.setItem('userType', type);
+        localStorage.setItem('firstName', data.firstName);
+        localStorage.setItem('lastName', data.lastName);
+        localStorage.setItem('photo', data.photo);
         router.push('/');
       } else {
         console.error('Unexpected response structure:', data);
-        throw new Error('Invalid response structure from server');
+        throw new Error('Invalid Password or Email');
       }
     } catch (err) {
       console.error('Login error:', err);
@@ -54,24 +66,24 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-white p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Image 
-            src="/High Res Logo Ulearn Black.svg" 
-            alt="ULearn Logo" 
-            width={280} 
-            height={120} 
-            className="mx-auto mb-6"
-          />
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Welcome Back</h1>
-          <p className="text-gray-600">Please sign in to continue</p>
-        </div>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[linear-gradient(135deg,_#e0f2fe_0%,_#f0f9ff_20%,_#ffe4e6_40%,_#bae6fd_60%,_#a5f3fc_100%)] text-[#222] p-4">
+      <div className="max-w-4xl w-full flex flex-col items-center">
+        <Image 
+          src="/High Res Logo Ulearn Black.svg" 
+          alt="ULearn Logo" 
+          width={320} 
+          height={140} 
+          className="mb-6 mt-8"
+        />
+        <h1 className="text-4xl font-extrabold text-center mb-6 tracking-tight" style={{ color: '#1e88a8' }}>
+          Welcome Back
+        </h1>
+        <p className="text-lg text-gray-700 mb-8 font-light">Please sign in to continue</p>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-lg p-8">
-          <div className="space-y-4">
+        <form onSubmit={handleSubmit} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-8 w-full max-w-md">
+          <div className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                 Email
               </label>
               <input
@@ -81,12 +93,12 @@ export default function LoginPage() {
                 onChange={e => setUsername(e.target.value)}
                 placeholder="Enter your email"
                 required
-                className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white/50"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                 Password
               </label>
               <input
@@ -96,27 +108,34 @@ export default function LoginPage() {
                 onChange={e => setPassword(e.target.value)}
                 placeholder="Enter your password"
                 required
-                className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white/50"
               />
             </div>
 
             <div>
-              <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-2">
                 User Type
               </label>
-              <select
-                id="type"
-                value={type}
-                onChange={e => setType(e.target.value)}
-                className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="student">Student</option>
-                <option value="admin">Admin</option>
-              </select>
+              <div className="relative">
+                <select
+                  id="type"
+                  value={type}
+                  onChange={e => setType(e.target.value)}
+                  className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white/50 appearance-none cursor-pointer pr-10"
+                >
+                  <option value="student">Student</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                  </svg>
+                </div>
+              </div>
             </div>
 
             {error && (
-              <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
+              <div className="text-red-600 text-sm bg-red-50/50 backdrop-blur-sm p-3 rounded-lg">
                 {error}
               </div>
             )}
@@ -124,7 +143,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white rounded-lg p-3 font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full py-3 px-6 rounded-2xl font-semibold transition-all duration-200 bg-gradient-to-r from-[#e0f2fe] via-[#bae6fd] to-[#7dd3fc] text-[#2563eb] shadow-md hover:brightness-110 hover:scale-105 text-lg disabled:bg-gray-300 disabled:text-gray-400"
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>

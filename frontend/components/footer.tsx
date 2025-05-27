@@ -21,16 +21,14 @@ export default function Footer() {
         
         {/* Social Icons */}
         <div className="flex gap-6 mb-6">
-          <Link href="https://twitter.com/" target="_blank" className="text-[#2563eb] hover:text-[#38bdf8] transition-colors">
-            <Twitter className="w-6 h-6" />
-          </Link>
-          <Link href="https://facebook.com/" target="_blank" className="text-[#2563eb] hover:text-[#38bdf8] transition-colors">
+
+          <Link href="https://web.facebook.com/onlineedubyulearn" target="_blank" className="text-[#2563eb] hover:text-[#38bdf8] transition-colors">
             <Facebook className="w-6 h-6" />
           </Link>
-          <Link href="https://instagram.com/" target="_blank" className="text-[#2563eb] hover:text-[#38bdf8] transition-colors">
+          <Link href="https://www.instagram.com/ulearnonlineeducation/" target="_blank" className="text-[#2563eb] hover:text-[#38bdf8] transition-colors">
             <Instagram className="w-6 h-6" />
           </Link>
-          <Link href="https://linkedin.com/" target="_blank" className="text-[#2563eb] hover:text-[#38bdf8] transition-colors">
+          <Link href="https://www.linkedin.com/company/ulearnonlineeducation/" target="_blank" className="text-[#2563eb] hover:text-[#38bdf8] transition-colors">
             <Linkedin className="w-6 h-6" />
           </Link>
         </div>
@@ -42,9 +40,9 @@ export default function Footer() {
         <div className="w-full flex flex-col md:flex-row items-center justify-between text-[#4a4a4a] text-sm gap-2">
           <div className="mb-2 md:mb-0">&copy; {new Date().getFullYear()} ULearn. All rights reserved.</div>
           <div className="flex gap-6">
-            <Link href="/privacy" className="hover:text-[#2563eb] transition-colors">Privacy Policy</Link>
-            <Link href="/terms" className="hover:text-[#2563eb] transition-colors">Terms of Service</Link>
-            <Link href="/contact" className="hover:text-[#2563eb] transition-colors">Contact</Link>
+            <Link href="https://ulearnlms.com/about-us/" className="hover:text-[#2563eb] transition-colors">About Us</Link>
+            <Link href="https://ulearnlms.com/courses/" className="hover:text-[#2563eb] transition-colors">Courses</Link>
+            <Link href="https://ulearnlms.com/contact/" className="hover:text-[#2563eb] transition-colors">Contact</Link>
           </div>
         </div>
       </div>

@@ -62,6 +62,11 @@ export async function POST(req: Request) {
       );
     }
 
+    // Extract topic from the query using Gemini
+    const topicPrompt = `Given the following query about ${subject}, extract the main topic or concept being asked about. Return only the topic name, nothing else. Query: "${query}"`;
+    const topicResult = await model.generateContent(topicPrompt);
+    const topic = topicResult.response.text().trim();
+
     // Validate count
     const validCount = Math.min(Math.max(parseInt(count.toString()), 1), 20);
     if (isNaN(validCount)) {
@@ -134,7 +139,10 @@ Generate ${validCount} MCQs that test understanding of the key concepts in the c
     const result = await model.generateContent(prompt);
     const response = result.response.text();
 
-    return NextResponse.json({ response });
+    return NextResponse.json({ 
+      response,
+      topic // Include the extracted topic in the response
+    });
   } catch (error) {
     console.error('MCQ generation error:', error);
     return NextResponse.json(
