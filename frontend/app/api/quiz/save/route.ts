@@ -4,9 +4,9 @@ import { RowDataPacket, ResultSetHeader } from 'mysql2';
 
 // Database connection configuration
 const dbConfig = {
-  host: process.env.DB_HOST || 'ulearnsql-ulearn-quiz.d.aivencloud.com',
-  user: process.env.DB_USER || 'avnadmin',
-  password: process.env.DB_PASSWORD || 'AVNS_emLP_3XGXfY7uoGC4Em',
+  host: process.env.DB_HOST || '',
+  user: process.env.DB_USER || '',
+  password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'ulearn',
   port: Number(process.env.DB_PORT) || 22473,
 };
