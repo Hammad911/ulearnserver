@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db';
+import { executeQuery } from '../../../../lib/db';
 
 interface Quiz {
   id: number;
@@ -17,6 +17,21 @@ interface QuestionRow {
   option_text: string;
   is_correct: boolean;
   selected_option_id: number | null;
+}
+
+interface Question {
+  id: number;
+  question_text: string;
+  options: {
+    id: number;
+    option_text: string;
+    is_correct: boolean;
+  }[];
+  selected_option_id: number | null;
+}
+
+interface QuizWithDetails extends Quiz {
+  questions: Question[];
 }
 
 export async function GET(request: Request) {
@@ -51,7 +66,7 @@ export async function GET(request: Request) {
 
     // For each quiz, get its questions and options
     const quizzesWithDetails = await Promise.all(
-      quizzes.map(async (quiz) => {
+      quizzes.map(async (quiz: Quiz) => {
         const questionsQuery = `
           SELECT 
             q.id,
@@ -69,8 +84,8 @@ export async function GET(request: Request) {
         const questionRows = await executeQuery<QuestionRow[]>(questionsQuery, [userId, quiz.id]);
         
         // Group options by question
-        const questionsMap = new Map();
-        questionRows.forEach(row => {
+        const questionsMap = new Map<number, Question>();
+        questionRows.forEach((row: QuestionRow) => {
           if (!questionsMap.has(row.id)) {
             questionsMap.set(row.id, {
               id: row.id,
@@ -80,18 +95,21 @@ export async function GET(request: Request) {
             });
           }
           if (row.option_id) {
-            questionsMap.get(row.id).options.push({
-              id: row.option_id,
-              option_text: row.option_text,
-              is_correct: row.is_correct
-            });
+            const question = questionsMap.get(row.id);
+            if (question) {
+              question.options.push({
+                id: row.option_id,
+                option_text: row.option_text,
+                is_correct: row.is_correct
+              });
+            }
           }
         });
 
         return {
           ...quiz,
           questions: Array.from(questionsMap.values())
-        };
+        } as QuizWithDetails;
       })
     );
 
