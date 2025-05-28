@@ -1,16 +1,7 @@
 import { NextResponse } from 'next/server';
-import mysql from 'mysql2/promise';
-import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { executeQuery } from '@/app/lib/db';
 
-// Database connection configuration
-const dbConfig = {
-  host: process.env.DB_HOST || 'Hammads-MacBook-Air.local',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'ulearn',
-};
-
-interface QuizRow extends RowDataPacket {
+interface Quiz {
   id: number;
   title: string;
   subject: string;
@@ -19,90 +10,96 @@ interface QuizRow extends RowDataPacket {
   created_at: Date;
 }
 
-interface QuestionRow extends RowDataPacket {
+interface QuestionRow {
   id: number;
   question_text: string;
-}
-
-interface OptionRow extends RowDataPacket {
-  id: number;
+  option_id: number;
   option_text: string;
   is_correct: boolean;
+  selected_option_id: number | null;
 }
 
-interface UserAnswerRow extends RowDataPacket {
-  selected_option_id: number;
-}
-
-export async function GET(req: Request) {
+export async function GET(request: Request) {
   try {
-    // Get user ID from request headers
-    const userId = req.headers.get('x-user-id');
-    
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+    console.log('userId received:', userId, typeof userId);
+
     if (!userId) {
       return NextResponse.json(
-        { error: 'User ID is required' },
-        { status: 401 }
+        { success: false, error: 'User ID is required', quizzes: [] },
+        { status: 400 }
       );
     }
 
-    // Create database connection
-    const connection = await mysql.createConnection(dbConfig);
+    // First get the basic quiz information
+    const quizQuery = `
+      SELECT 
+        q.id,
+        q.title,
+        q.subject,
+        q.topic,
+        q.score,
+        q.created_at
+      FROM quizzes q
+      WHERE q.user_id = ?
+      ORDER BY q.created_at DESC
+    `;
 
-    try {
-      // Get all quizzes for the user
-      const [quizzes] = await connection.execute<QuizRow[]>(
-        'SELECT * FROM quizzes WHERE user_id = ? ORDER BY created_at DESC',
-        [userId]
-      );
+    const quizzes = await executeQuery<Quiz[]>(quizQuery, [userId]);
+    console.log('quizzes found:', quizzes);
 
-      // For each quiz, get questions, options, and user answers
-      const quizHistory = [];
-      for (const quiz of quizzes) {
-        const [questions] = await connection.execute<QuestionRow[]>(
-          'SELECT * FROM questions WHERE quiz_id = ?',
-          [quiz.id]
-        );
+    // For each quiz, get its questions and options
+    const quizzesWithDetails = await Promise.all(
+      quizzes.map(async (quiz) => {
+        const questionsQuery = `
+          SELECT 
+            q.id,
+            q.question_text,
+            o.id as option_id,
+            o.option_text,
+            o.is_correct,
+            ua.selected_option_id
+          FROM questions q
+          LEFT JOIN options o ON q.id = o.question_id
+          LEFT JOIN user_answers ua ON q.id = ua.question_id AND ua.user_id = ?
+          WHERE q.quiz_id = ?
+        `;
 
-        const questionsWithDetails = [];
-        for (const question of questions) {
-          const [options] = await connection.execute<OptionRow[]>(
-            'SELECT id, option_text, is_correct FROM options WHERE question_id = ?',
-            [question.id]
-          );
-          const [userAnswer] = await connection.execute<UserAnswerRow[]>(
-            'SELECT selected_option_id FROM user_answers WHERE question_id = ? AND user_id = ?',
-            [question.id, userId]
-          );
-          const selectedOptionId = userAnswer[0]?.selected_option_id || null;
-          questionsWithDetails.push({
-            id: question.id,
-            question_text: question.question_text,
-            options,
-            selected_option_id: selectedOptionId,
-          });
-        }
-
-        quizHistory.push({
-          id: quiz.id,
-          title: quiz.title,
-          subject: quiz.subject,
-          topic: quiz.topic,
-          score: quiz.score,
-          created_at: quiz.created_at,
-          questions: questionsWithDetails,
+        const questionRows = await executeQuery<QuestionRow[]>(questionsQuery, [userId, quiz.id]);
+        
+        // Group options by question
+        const questionsMap = new Map();
+        questionRows.forEach(row => {
+          if (!questionsMap.has(row.id)) {
+            questionsMap.set(row.id, {
+              id: row.id,
+              question_text: row.question_text,
+              options: [],
+              selected_option_id: row.selected_option_id
+            });
+          }
+          if (row.option_id) {
+            questionsMap.get(row.id).options.push({
+              id: row.option_id,
+              option_text: row.option_text,
+              is_correct: row.is_correct
+            });
+          }
         });
-      }
 
-      return NextResponse.json({ success: true, quizzes: quizHistory });
-    } finally {
-      // Close connection
-      await connection.end();
-    }
+        return {
+          ...quiz,
+          questions: Array.from(questionsMap.values())
+        };
+      })
+    );
+
+    return NextResponse.json({ success: true, quizzes: quizzesWithDetails });
   } catch (error) {
     console.error('Error fetching quiz history:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch quiz history' },
+      { success: false, error: 'Failed to fetch quiz history', quizzes: [] },
       { status: 500 }
     );
   }

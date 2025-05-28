@@ -43,11 +43,7 @@ export default function QuizHistory({ userId, subject }: QuizHistoryProps) {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/api/quiz/history', {
-        headers: {
-          'x-user-id': userId
-        }
-      });
+      const response = await fetch(`/api/quiz/history?userId=${userId}`);
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || 'Failed to fetch quiz history');
