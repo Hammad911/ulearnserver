@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db';
+import { executeQuery } from '../../../lib/db';
 
 interface Quiz {
   id: number;
