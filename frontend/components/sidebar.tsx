@@ -32,7 +32,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
   return (
     <div 
       className={`fixed left-0 top-16 h-[calc(100vh-4rem)] z-20 bg-transparent backdrop-blur-sm shadow-lg border-r border-[#e0e7ef]/50 flex flex-col transition-all duration-300 ease-in-out overflow-hidden ${
-        isCollapsed ? 'w-24' : 'w-64'
+        isCollapsed ? 'w-16 md:w-24' : 'w-48 md:w-64'
       }`}
     >
       <div className="relative flex flex-col items-center justify-start pt-5 pb-1">
