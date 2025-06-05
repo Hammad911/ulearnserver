@@ -1,22 +1,26 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 import uvicorn
 import os
 import json
 from typing import Optional
 import asyncio
-from .embedder import EnhancedBookEmbedder
+from src.core.embedder import EnhancedBookEmbedder
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI()
+app = FastAPI(
+    title="uLearn API",
+    description="API for document processing and semantic search",
+    version="1.0.0"
+)
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://ulearnserver-czuk.vercel.app",
-        "http://localhost:3000"
+        "http://localhost:3000",
+        "https://ulearnserver.vercel.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -25,6 +29,22 @@ app.add_middleware(
 
 # Initialize the embedder
 embedder = None
+
+@app.get("/")
+async def root():
+    """Root endpoint providing API information"""
+    return JSONResponse({
+        "name": "uLearn API",
+        "version": "1.0.0",
+        "endpoints": {
+            "/": "API information (this endpoint)",
+            "/docs": "Interactive API documentation",
+            "/upload": "Upload and process documents",
+            "/search": "Perform semantic search",
+            "/mcq": "Generate MCQs from documents"
+        },
+        "status": "running"
+    })
 
 @app.post("/upload")
 async def upload_file(
