@@ -60,6 +60,9 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [userType, setUserType] = useState<string | null>(null);
+  const [promptCount, setPromptCount] = useState(0);
+  const MAX_PROMPTS = 5;
+  const HOUR_IN_MS = 60 * 60 * 1000;
 
   // Check authentication and get userType on component mount
   useEffect(() => {
@@ -69,7 +72,30 @@ export default function Home() {
     }
     const storedUserType = localStorage.getItem('userType');
     setUserType(storedUserType);
+
+    // Initialize or check prompt count
+    const storedPromptData = localStorage.getItem('promptData');
+    if (storedPromptData) {
+      const { count, timestamp } = JSON.parse(storedPromptData);
+      const now = Date.now();
+      
+      // If more than an hour has passed, reset the count
+      if (now - timestamp > HOUR_IN_MS) {
+        localStorage.setItem('promptData', JSON.stringify({ count: 0, timestamp: now }));
+        setPromptCount(0);
+      } else {
+        setPromptCount(count);
+      }
+    }
   }, [router]);
+
+  const updatePromptCount = (newCount: number) => {
+    setPromptCount(newCount);
+    localStorage.setItem('promptData', JSON.stringify({
+      count: newCount,
+      timestamp: Date.now()
+    }));
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -81,7 +107,7 @@ export default function Home() {
   };
 
   const sendMessage = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || promptCount >= MAX_PROMPTS) return;
     setMessages(msgs => [...msgs, { role: 'user', content: input }]);
     setLoading(true);
     setError('');
@@ -97,6 +123,7 @@ export default function Home() {
       const data = await res.json();
       if (data.success) {
         setMessages(msgs => [...msgs, { role: 'ai', content: data.response }]);
+        updatePromptCount(promptCount + 1);
       } else {
         setError(data.detail || 'Chat failed');
       }
@@ -160,8 +187,28 @@ export default function Home() {
           </div>
         ))}
         <div className="flex w-full gap-2 mt-4">
-      
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+            placeholder={promptCount >= MAX_PROMPTS ? "You've reached the maximum number of prompts for this hour" : "Type your message..."}
+            disabled={promptCount >= MAX_PROMPTS}
+            className="flex-1 px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          />
+          <button
+            onClick={sendMessage}
+            disabled={!input.trim() || loading || promptCount >= MAX_PROMPTS}
+            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Sending...' : 'Send'}
+          </button>
         </div>
+        {promptCount >= MAX_PROMPTS && (
+          <div className="text-yellow-600 text-sm mt-2">
+            You've reached the maximum number of prompts (5) for this hour. Please try again later.
+          </div>
+        )}
         {error && <div className="text-red-600 text-sm mt-2">{error}</div>}
       </main>
     </div>

@@ -117,7 +117,7 @@ export async function POST(req: Request) {
 
     // Create a prompt for the AI
     const prompt = shouldUseFallback
-      ? `You are a ${subject} information retrieval system. The question appears to be about ${subject}, but the textbook doesn't contain specific information about it.
+      ? `You are an educational information retrieval system. The question appears to be about ${subject}, but the textbook doesn't contain specific information about it.
 
 Question: ${query}
 
@@ -125,16 +125,19 @@ Textbook content (if any):
 ${context}
 
 Instructions:
-- Provide a concise, direct answer based on ${subject} knowledge.
+- First, try to use any relevant information from the provided textbook content
+- If the textbook content is insufficient but the question is about a fundamental concept, provide an answer that matches the style and depth of the textbook
+- Structure your response similar to how the textbook presents information
+- Use terminology and explanations that are consistent with the textbook's approach
 - Do NOT use markdown, LaTeX, or any special formatting. Write plain text only.
 - Do NOT use special characters or symbols outside of standard English.
-- Keep your answer short and focused (3-4 sentences max).
+- Keep your answer focused and well-structured (4-5 sentences).
 - If the question is too complex or outside the scope of basic ${subject}, state this simply.
 
 Format your response:
 [SOURCE: ${subject} Knowledge]
-[Your response]`
-      : `You are a ${subject} information retrieval system. Your task is to provide information exclusively from the textbook content.
+[Your response, matching textbook style and depth]`
+      : `You are an educational information retrieval system. Your task is to provide information primarily from the textbook content.
 
 Question: ${query}
 
@@ -142,31 +145,34 @@ Textbook content:
 ${context}
 
 Instructions:
-- Use ONLY the provided textbook content - do not add external information
+- Use the provided textbook content as your PRIMARY source
+- Present information exactly as it appears in the textbook when available
+- Only when the textbook content is insufficient, enhance it with fundamental knowledge while:
+  - Maintaining the same style and depth as the textbook
+  - Using similar terminology and explanations
+  - Following the textbook's approach to concepts
 - Do NOT use markdown, LaTeX, or any special formatting. Write plain text only.
 - Do NOT use special characters or symbols outside of standard English.
-- Present the information exactly as it appears in the textbook
-- Keep your answer short and focused (3-4 sentences max).
-- Remove references to figures, tables, or diagrams
+- Present the information in a clear, structured manner matching the textbook style
+- Keep your answer focused and well-structured (4-5 sentences)
 - If the textbook content is not relevant to the question, state this clearly
-- Maintain the exact technical terminology and accuracy from the textbook
-- Keep the response focused on the textbook content only
-- If multiple relevant sections exist, combine them while maintaining book accuracy
-- If the content is too short (less than 2-3 sentences), expand the response by:
-   - Providing more context from surrounding content
-   - Explaining related concepts mentioned in the text
-   - Breaking down complex terms or ideas
-   - Adding relevant examples from the text
-   - Maintaining the exact terminology and accuracy from the textbook
+- For questions about basic concepts, ensure your explanation matches the textbook's approach
+- If multiple relevant sections exist, combine them while maintaining the textbook's style
+- If the content is too short, expand it by:
+   - Using more context from the textbook
+   - Explaining related concepts in the textbook's style
+   - Breaking down terms as the textbook would
+   - Adding examples similar to those in the textbook
+   - Maintaining the textbook's terminology and approach
 - If the content is too long, prioritize the most important parts that directly answer the question
 
 Format your response:
 [SOURCE: ${subject} Textbook]
-[Textbook content with elaboration if needed]
+[Textbook content with elaboration if needed, maintaining textbook style]
 
 If the textbook content is not relevant:
-[SOURCE: ${subject} Textbook]
-The textbook does not contain information about [topic].`;
+[SOURCE: ${subject} Knowledge]
+[Your response, matching the textbook's style and approach]`;
 
     // Get response from Gemini
     const result = await model.generateContent(prompt)

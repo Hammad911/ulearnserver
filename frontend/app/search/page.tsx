@@ -77,16 +77,42 @@ function SearchPageInner() {
   const [loading, setLoading] = useState(false);
   const [aiResponse, setAiResponse] = useState('');
   const [error, setError] = useState('');
+  const [promptCount, setPromptCount] = useState(0);
+  const MAX_PROMPTS = 10;
+  const HOUR_IN_MS = 60 * 60 * 1000;
 
   useEffect(() => {
     if (!subject) {
       router.push('/subjects');
     }
+
+    // Initialize or check prompt count
+    const storedPromptData = localStorage.getItem('promptData');
+    if (storedPromptData) {
+      const { count, timestamp } = JSON.parse(storedPromptData);
+      const now = Date.now();
+      
+      // If more than an hour has passed, reset the count
+      if (now - timestamp > HOUR_IN_MS) {
+        localStorage.setItem('promptData', JSON.stringify({ count: 0, timestamp: now }));
+        setPromptCount(0);
+      } else {
+        setPromptCount(count);
+      }
+    }
   }, [subject, router]);
+
+  const updatePromptCount = (newCount: number) => {
+    setPromptCount(newCount);
+    localStorage.setItem('promptData', JSON.stringify({
+      count: newCount,
+      timestamp: Date.now()
+    }));
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query.trim() || !subject) return;
+    if (!query.trim() || !subject || promptCount >= MAX_PROMPTS) return;
 
     setLoading(true);
     setError('');
@@ -110,6 +136,7 @@ function SearchPageInner() {
       }
 
       setAiResponse(data.aiResponse || '');
+      updatePromptCount(promptCount + 1);
     } catch (err) {
       console.error('Search error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred during search');
@@ -147,8 +174,9 @@ function SearchPageInner() {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={`Ask a question about ${subject}...`}
-                className="w-full py-3 px-4 pr-12 bg-white border border-gray-300 rounded-lg focus:ring-blue-400 focus:border-blue-400 text-[#222]"
+                placeholder={promptCount >= MAX_PROMPTS ? "You've reached the maximum number of prompts for this hour" : `Ask a question about ${subject}...`}
+                disabled={promptCount >= MAX_PROMPTS}
+                className="w-full py-3 px-4 pr-12 bg-white border border-gray-300 rounded-lg focus:ring-blue-400 focus:border-blue-400 text-[#222] disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
               {loading && (
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -158,7 +186,7 @@ function SearchPageInner() {
             </div>
             <button
               type="submit"
-              disabled={loading || !query.trim()}
+              disabled={loading || !query.trim() || promptCount >= MAX_PROMPTS}
               className="py-3 px-6 rounded-2xl font-semibold transition-all duration-200 bg-gradient-to-r from-[#e0f2fe] via-[#bae6fd] to-[#7dd3fc] text-[#2563eb] shadow-md hover:brightness-110 hover:scale-105 flex items-center gap-2 disabled:bg-gray-300 disabled:text-gray-400"
             >
               <Search className="w-5 h-5" />
@@ -166,6 +194,12 @@ function SearchPageInner() {
             </button>
           </div>
         </form>
+
+        {promptCount >= MAX_PROMPTS && (
+          <div className="bg-yellow-900/30 text-yellow-300 p-4 rounded-lg mb-6">
+            You've reached the maximum number of prompts (5) for this hour. Please try again later.
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-900/30 text-red-300 p-4 rounded-lg mb-6">
