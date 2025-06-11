@@ -73,12 +73,16 @@ export default function QuizHistory({ userId, subject }: QuizHistoryProps) {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    const date = new Date(dateString);
+    // Convert to PKT (UTC+5)
+    const pktDate = new Date(date.getTime() + (5 * 60 * 60 * 1000));
+    return pktDate.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZone: 'Asia/Karachi'
     });
   };
 

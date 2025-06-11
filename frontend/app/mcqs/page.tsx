@@ -59,6 +59,14 @@ function MCQPageInner() {
   });
   const [showHistory, setShowHistory] = useState(false);
 
+  // Function to get current PKT timestamp
+  const getPKTTimestamp = () => {
+    const now = new Date();
+    // PKT is UTC+5
+    const pktTime = new Date(now.getTime() + (5 * 60 * 60 * 1000));
+    return pktTime.toISOString();
+  };
+
   useEffect(() => {
     const storedUserId = localStorage.getItem('userId');
     const storedEmail = localStorage.getItem('email');
@@ -88,7 +96,8 @@ function MCQPageInner() {
         body: JSON.stringify({ 
           query: input.trim(),
           count: parseInt(mcqCount),
-          subject: subject
+          subject: subject,
+          timestamp: getPKTTimestamp() // Add PKT timestamp
         }),
       });
 
@@ -195,7 +204,10 @@ function MCQPageInner() {
             'Content-Type': 'application/json',
             'x-user-id': userId || ''
           },
-          body: JSON.stringify(quizSubmission),
+          body: JSON.stringify({
+            ...quizSubmission,
+            created_at: getPKTTimestamp() // Add PKT timestamp
+          }),
         });
 
         if (!response.ok) {

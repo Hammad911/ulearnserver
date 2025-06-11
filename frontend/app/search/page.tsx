@@ -81,6 +81,14 @@ function SearchPageInner() {
   const MAX_PROMPTS = 10;
   const HOUR_IN_MS = 60 * 60 * 1000;
 
+  // Function to get current PKT timestamp
+  const getPKTTimestamp = () => {
+    const now = new Date();
+    // PKT is UTC+5
+    const pktTime = new Date(now.getTime() + (5 * 60 * 60 * 1000));
+    return pktTime.getTime();
+  };
+
   useEffect(() => {
     if (!subject) {
       router.push('/subjects');
@@ -90,7 +98,7 @@ function SearchPageInner() {
     const storedPromptData = localStorage.getItem('promptData');
     if (storedPromptData) {
       const { count, timestamp } = JSON.parse(storedPromptData);
-      const now = Date.now();
+      const now = getPKTTimestamp();
       
       // If more than an hour has passed, reset the count
       if (now - timestamp > HOUR_IN_MS) {
@@ -106,7 +114,7 @@ function SearchPageInner() {
     setPromptCount(newCount);
     localStorage.setItem('promptData', JSON.stringify({
       count: newCount,
-      timestamp: Date.now()
+      timestamp: getPKTTimestamp()
     }));
   };
 
@@ -197,7 +205,7 @@ function SearchPageInner() {
 
         {promptCount >= MAX_PROMPTS && (
           <div className="bg-yellow-900/30 text-yellow-300 p-4 rounded-lg mb-6">
-            You've reached the maximum number of prompts (5) for this hour. Please try again later.
+            You've reached the maximum number of prompts (10) for this hour. Please try again later.
           </div>
         )}
 
