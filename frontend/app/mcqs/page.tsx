@@ -59,10 +59,10 @@ function MCQPageInner() {
   });
   const [showHistory, setShowHistory] = useState(false);
 
-  // Function to get current PKT timestamp
+  
   const getPKTTimestamp = () => {
     const now = new Date();
-    // PKT is UTC+5
+    
     const pktTime = new Date(now.getTime() + (5 * 60 * 60 * 1000));
     return pktTime.toISOString();
   };
