@@ -114,35 +114,6 @@ export default function Home() {
     window.location.href = path;
   };
 
-  const sendMessage = async () => {
-    if (!input.trim() || promptCount >= MAX_PROMPTS) return;
-    setMessages(msgs => [...msgs, { role: 'user', content: input }]);
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetch('http://localhost:8000/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ 
-          message: input, 
-          token: localStorage.getItem('token') || '' 
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setMessages(msgs => [...msgs, { role: 'ai', content: data.response }]);
-        updatePromptCount(promptCount + 1);
-      } else {
-        setError(data.detail || 'Chat failed');
-      }
-    } catch (err) {
-      setError('Network error');
-    } finally {
-      setLoading(false);
-      setInput('');
-    }
-  };
-
   return (
     <div className="flex flex-col items-center justify-center p-4 min-h-screen">
       <div className="max-w-4xl w-full flex flex-col items-center">
