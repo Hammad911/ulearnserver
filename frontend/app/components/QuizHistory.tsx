@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle2, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatInTimeZone } from 'date-fns-tz';
+import { useRouter } from 'next/navigation';
 
 interface Option {
-  id: number;
+  id: number,
   option_text: string;
   is_correct: boolean;
 }
