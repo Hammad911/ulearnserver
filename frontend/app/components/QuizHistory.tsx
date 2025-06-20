@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle2, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
-import { formatInTimeZone } from 'date-fns-tz';
-import { useRouter } from 'next/navigation';
 
 interface Option {
-  id: number,
+  id: number;
   option_text: string;
   is_correct: boolean;
 }
@@ -75,14 +73,17 @@ export default function QuizHistory({ userId, subject }: QuizHistoryProps) {
   };
 
   const formatDate = (dateString: string) => {
-    try {
-      // Use date-fns-tz to correctly format the UTC time in Pakistan's timezone
-      return formatInTimeZone(dateString, 'Asia/Karachi', 'MMMM d, yyyy, h:mm a');
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      // Fallback to a simple date string if formatting fails
-      return new Date(dateString).toLocaleString();
-    }
+    const date = new Date(dateString);
+    // Convert to PKT (UTC+5)
+    const pktDate = new Date(date.getTime() + (5 * 60 * 60 * 1000));
+    return pktDate.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Karachi'
+    });
   };
 
   if (loading) {
