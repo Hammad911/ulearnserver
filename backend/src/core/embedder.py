@@ -393,7 +393,8 @@ class EnhancedBookEmbedder:
     
     def __init__(self, index_name='enhanced-book-embeddings', namespace='default'):
         """Initialize Pinecone index for book embeddings"""
-        self.index_name = index_name
+        # Format index name for Pinecone (lowercase, alphanumeric + hyphens)
+        self.index_name = re.sub(r'[^a-z0-9-]', '-', index_name.lower())
         self.namespace = namespace
         self.book_metadata = {}
         self.index = None
@@ -630,8 +631,9 @@ class EnhancedBookEmbedder:
         for attempt in range(max_retries):
             try:
                 result = genai.embed_content(
-                    model="models/embedding-001",
+                    model="models/embedding-001",  # Updated to use the correct model name
                     content=text,
+                    task_type="retrieval_document"
                 )
                 return result['embedding']
             except Exception as e:
