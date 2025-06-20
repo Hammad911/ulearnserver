@@ -1,8 +1,15 @@
 import { createClient } from 'redis';
 
-// Using non-TLS connection that we confirmed works
+// Get the Redis URL from environment variables
+const redisUrl = process.env.REDIS_URL;
+
+// Ensure the Redis URL is set, otherwise throw an error
+if (!redisUrl) {
+  throw new Error('REDIS_URL environment variable is not set. Please add it to your .env.local file or Vercel settings.');
+}
+
 const client = createClient({
-  url: 'redis://default:Mtn5vtm0i6jOHEph3r4lP8aBnBeB6tFQ@redis-11091.c276.us-east-1-2.ec2.redns.redis-cloud.com:11091'
+  url: redisUrl
 });
 
 // Handle connection errors
