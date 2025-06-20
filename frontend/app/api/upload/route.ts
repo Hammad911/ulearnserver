@@ -27,7 +27,7 @@ export async function POST(request: Request): Promise<Response> {
     apiFormData.append('index_name', indexName);  // Note: using snake_case for FastAPI
 
     // Use NEXT_PUBLIC_API_URL for the backend URL
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://ulearnserver.onrender.com';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
     const response = await fetch(`${apiUrl}/upload`, {
       method: 'POST',
       body: apiFormData,

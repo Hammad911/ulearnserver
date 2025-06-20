@@ -88,6 +88,8 @@ function MCQPageInner() {
 
     setLoading(true);
     try {
+      console.log('Sending MCQ request:', { query: input.trim(), subject });
+      
       const response = await fetch('/api/mcq', {
         method: 'POST',
         headers: {
@@ -95,20 +97,38 @@ function MCQPageInner() {
         },
         body: JSON.stringify({ 
           query: input.trim(),
-          count: parseInt(mcqCount),
-          subject: subject,
-          timestamp: getPKTTimestamp() // Add PKT timestamp
+          subject: subject
         }),
       });
 
+      console.log('Received response:', response.status);
       const data = await response.json();
+      console.log('Response data:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to generate quiz');
       }
 
-      const mcqs = parseMCQs(data.response);
-      setCurrentTopic(data.topic);
+      if (!data.questions || !Array.isArray(data.questions)) {
+        console.error('Invalid response format:', data);
+        throw new Error('Invalid quiz format received');
+      }
+
+      // Convert the new format to the expected format
+      const mcqs = data.questions.map((q: any) => {
+        if (!q.question || !Array.isArray(q.options) || !q.answer) {
+          console.error('Invalid MCQ format:', q);
+          throw new Error('Invalid MCQ format received');
+        }
+        return {
+          question: q.question,
+          options: q.options,
+          correctAnswer: q.options[q.answer.charCodeAt(0) - 65] // Convert A,B,C,D to 0,1,2,3
+        };
+      });
+
+      console.log('Processed MCQs:', mcqs);
+      setCurrentTopic(data.topic || input.trim());
       setQuizState({
         mcqs,
         currentQuestion: 0,
@@ -118,7 +138,7 @@ function MCQPageInner() {
       });
     } catch (err) {
       console.error('Quiz generation error:', err);
-      alert('Failed to generate quiz. Please try again.');
+      alert(err instanceof Error ? err.message : 'Failed to generate quiz. Please try again.');
     } finally {
       setLoading(false);
       setInput('');

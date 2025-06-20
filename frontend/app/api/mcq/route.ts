@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Pinecone } from '@pinecone-database/pinecone';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getCachedMCQ, setCachedMCQ } from '@/lib/redis';
 
 // Initialize with error handling
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!);
@@ -95,40 +96,71 @@ async function connectToPinecone(indexName: string) {
   }
 }
 
+// Function to extract a concise topic name using Gemini
+async function extractTopic(query: string): Promise<string> {
+  const topicPrompt = `Given the following question, extract the main topic or concept in 1-3 words. Return only the topic name, nothing else.\n\nQuestion: ${query}`;
+  const result = await model.generateContent(topicPrompt);
+  return result.response.text().trim().replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, '');
+}
+
 export async function POST(req: Request) {
   try {
-    const { query, count = 5, subject } = await req.json();
+    const { query, subject } = await req.json();
+    console.log('Received request:', { query, subject });
 
-    if (!query || !subject) {
+    if (!query) {
       return NextResponse.json(
-        { error: 'Query and subject are required' },
+        { error: 'Query is required' },
         { status: 400 }
       );
     }
 
-    // Run these operations in parallel
-    const [requirements, embedding, index] = await Promise.all([
-      analyzeQueryRequirements(query),
-      generateEmbedding(query),
-      connectToPinecone(subject)
-    ]);
-
-    // Extract topic and validate count in parallel
-    const [topicResult, validCount] = await Promise.all([
-      model.generateContent(`Given the following query about ${subject}, extract the main topic or concept being asked about. Return only the topic name, nothing else. Query: "${query}"`),
-      Promise.resolve(Math.min(Math.max(parseInt(count.toString()), 1), 20))
-    ]);
-
-    if (isNaN(validCount)) {
+    if (!subject) {
       return NextResponse.json(
-        { error: 'Invalid MCQ count' },
+        { error: 'Subject is required' },
         { status: 400 }
       );
     }
 
-    const topic = topicResult.response.text().trim();
+    // Check cache first
+    const cachedResults = await getCachedMCQ(query, subject);
+    if (cachedResults) {
+      console.log('Returning cached results');
+      return NextResponse.json(cachedResults);
+    }
 
-    // Optimize context retrieval
+    // Extract topic using Gemini
+    console.log('Extracting topic...');
+    const topic = await extractTopic(query);
+    console.log('Extracted topic:', topic);
+
+    // Analyze query requirements
+    console.log('Analyzing query requirements...');
+    const requirements = await analyzeQueryRequirements(query);
+    const { isNumerical, difficulty, focus } = requirements;
+    console.log('Query requirements:', requirements);
+
+    // Generate embedding for the query
+    console.log('Generating embedding...');
+    const embedding = await generateEmbedding(query);
+    console.log('Embedding generated, length:', embedding.length);
+
+    // Use the subject name directly as the index name
+    const indexName = subject.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    console.log('Using index:', indexName);
+
+    // Connect to Pinecone and query
+    console.log('Connecting to Pinecone...');
+    const index = await connectToPinecone(indexName);
+
+    // Get valid count from index stats
+    console.log('Getting index stats...');
+    const stats = await index.describeIndexStats();
+    const validCount = stats.totalRecordCount || 0;
+    console.log('Index stats:', stats);
+
+    // Query all namespaces in parallel for physics
+    console.log('Querying Pinecone...');
     let allMatches = [];
     if (subject === 'physics') {
       const [stats, defaultQuery] = await Promise.all([
@@ -141,6 +173,7 @@ export async function POST(req: Request) {
       ]);
 
       const chapterNamespaces = Object.keys(stats.namespaces || {}).filter(ns => ns.startsWith('chapter_'));
+      console.log('Found chapter namespaces:', chapterNamespaces);
       
       // Query all namespaces in parallel
       const namespaceQueries = await Promise.all(
@@ -166,48 +199,86 @@ export async function POST(req: Request) {
       });
       allMatches = queryResponse.matches || [];
     }
+    console.log('Found matches:', allMatches.length);
 
     // Extract relevant context
     const context = allMatches
       .map((match) => match.metadata?.text || '')
       .join('\n\n');
+    console.log('Context length:', context.length);
 
-    // Create optimized prompt
-    const prompt = `Based on the following context from ${subject} textbooks, generate ${validCount} multiple-choice questions. Each question should have 4 options (A, B, C, D) with one correct answer. Mark the correct answer with an asterisk (*).
+    // Create a prompt for the AI
+    const prompt = `You are an educational MCQ generator. Generate 5 multiple-choice questions based on the following context and requirements:\n\nContext:\n${context}\n\nRequirements:\n- Difficulty: ${difficulty}\n- Numerical: ${isNumerical ? 'Yes' : 'No'}\n- Focus areas: ${focus.join(', ')}\n\nInstructions:\n- Generate questions that test understanding of the concepts in the context\n- Each question should have 4 options (A, B, C, D)\n- Only one option should be correct\n- Make the incorrect options plausible but clearly wrong\n- For numerical questions, include calculations and formulas\n- For conceptual questions, focus on key definitions and relationships\n- Ensure questions are at the specified difficulty level\n- Include explanations for the correct answers\n\nIMPORTANT: Return a valid JSON array with exactly this structure:\n[\n  {\n    "question": "Question text here",\n    "options": ["Option A", "Option B", "Option C", "Option D"],\n    "answer": "A",\n    "explanation": "Explanation here"\n  }\n]\n\nDo not include any additional text, markdown formatting, or code blocks. Return ONLY the JSON array.`;
 
-Requirements:
-${requirements.isNumerical ? '- Generate numerical questions that require calculations and problem-solving.' : ''}
-- Difficulty level: ${requirements.difficulty}
-${requirements.focus.length > 0 ? `- Focus areas: ${requirements.focus.join(', ')}` : ''}
-
-Instructions:
-- Do NOT reference the context, "provided text," or "according to the passage."
-- Each question must be fully self-contained and understandable on its own.
-- Do NOT use phrases like "according to the above," "based on the context," or similar.
-- Write each question as it would appear in a real exam.
-${requirements.isNumerical ? '- Include necessary values and units in the questions.' : ''}
-
-Format each question like this:
-Question 1: [Question text]
-Options:
-A) [Option 1]
-B) [Option 2]
-C) [Option 3]*
-D) [Option 4]
-
-Context:
-${context}
-
-Generate ${validCount} MCQs that test understanding of the key concepts in the context. Make sure the questions are clear, the options are plausible, and only one answer is correct.`;
-
+    // Get response from Gemini
+    console.log('Generating MCQs with Gemini...');
     const result = await model.generateContent(prompt);
     const response = result.response.text();
+    console.log('Raw Gemini response:', response);
+    
+    // Clean up the response and ensure it's valid JSON
+    let jsonStr = response.trim();
+    
+    // Remove any markdown code blocks if present
+    jsonStr = jsonStr.replace(/```json\n?|\n?```/g, '').trim();
+    
+    // If the response starts with a newline or whitespace, remove it
+    jsonStr = jsonStr.replace(/^\s+/, '');
+    
+    // If the response doesn't start with '[', try to find the start of the array
+    if (!jsonStr.startsWith('[')) {
+      const arrayStart = jsonStr.indexOf('[');
+      if (arrayStart !== -1) {
+        jsonStr = jsonStr.slice(arrayStart);
+      }
+    }
+    
+    console.log('Cleaned JSON string:', jsonStr);
+    
+    try {
+      const mcqs = JSON.parse(jsonStr);
+      console.log('Parsed MCQs:', mcqs);
+      
+      // Validate the structure
+      if (!Array.isArray(mcqs)) {
+        throw new Error('Response is not an array');
+      }
+      
+      // Validate each MCQ
+      mcqs.forEach((mcq, index) => {
+        if (!mcq.question || !Array.isArray(mcq.options) || mcq.options.length !== 4 || !mcq.answer || !mcq.explanation) {
+          throw new Error(`Invalid MCQ structure at index ${index}`);
+        }
+      });
+      
+      const mcqResults = {
+        questions: mcqs.map(mcq => ({
+          question: mcq.question,
+          options: mcq.options,
+          answer: mcq.answer,
+          explanation: mcq.explanation
+        })),
+        requirements: {
+          isNumerical,
+          difficulty,
+          focus
+        },
+        topic // Use the concise topic name
+      };
 
-    return NextResponse.json({ 
-      response,
-      topic,
-      requirements
-    });
+      // Cache the results
+      console.log('Caching results...');
+      await setCachedMCQ(query, subject, mcqResults);
+
+      return NextResponse.json(mcqResults);
+    } catch (error) {
+      console.error('Error parsing MCQ response:', error);
+      console.error('Raw response:', response);
+      return NextResponse.json(
+        { error: 'Failed to generate MCQs: Invalid response format' },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error('MCQ generation error:', error);
     return NextResponse.json(

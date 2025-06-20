@@ -78,7 +78,7 @@ function SearchPageInner() {
   const [aiResponse, setAiResponse] = useState('');
   const [error, setError] = useState('');
   const [promptCount, setPromptCount] = useState(0);
-  const MAX_PROMPTS = 10;
+  const MAX_PROMPTS = 20;
   const HOUR_IN_MS = 60 * 60 * 1000;
 
   // Function to get current PKT timestamp

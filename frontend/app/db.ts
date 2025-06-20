@@ -14,7 +14,7 @@ export const dbConfig = {
   acquireTimeout: 20000, // 20 seconds
   timeout: 20000, // 20 seconds
   waitForConnections: true,
-  connectionLimit: 10,
+  connectionLimit: 20,
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { Pinecone } from '@pinecone-database/pinecone'
+import { getCachedSearch, setCachedSearch } from '@/lib/redis'
 
 // Initialize with error handling
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!)
@@ -88,6 +89,12 @@ export async function POST(req: Request) {
       )
     }
 
+    // Check cache first
+    const cachedResults = await getCachedSearch(query, subject)
+    if (cachedResults) {
+      return NextResponse.json(cachedResults)
+    }
+
     // First check if query is relevant to subject
     const isRelevant = await isQueryRelevantToSubject(query, subject)
 
@@ -95,7 +102,7 @@ export async function POST(req: Request) {
     const embedding = await generateEmbedding(query)
 
     // Use the subject name directly as the index name
-    const indexName = subject
+    const indexName = subject.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
 
     // Connect to Pinecone and query
     const index = await connectToPinecone(indexName)
@@ -178,7 +185,7 @@ If the textbook content is not relevant:
     const result = await model.generateContent(prompt)
     const response = result.response.text()
 
-    return NextResponse.json({ 
+    const searchResults = { 
       results: queryResponse.matches.map(match => ({
         text: match.metadata?.text || '',
         score: match.score,
@@ -186,7 +193,12 @@ If the textbook content is not relevant:
       })),
       aiResponse: response,
       usedFallback: shouldUseFallback
-    })
+    }
+
+    // Cache the results
+    await setCachedSearch(query, subject, searchResults)
+
+    return NextResponse.json(searchResults)
   } catch (error) {
     console.error('Search error:', error)
     return NextResponse.json(
