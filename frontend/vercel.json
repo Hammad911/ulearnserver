@@ -1,0 +1,15 @@
+{
+  "functions": {
+    "app/api/search/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/mcq/route.ts": {
+      "maxDuration": 30
+    }
+  },
+  "env": {
+    "REDIS_HOST": "redis-11091.c276.us-east-1-2.ec2.redns.redis-cloud.com",
+    "REDIS_PORT": "11091",
+    "REDIS_PASSWORD": "Mtn5vtm0i6jOHEph3r4lP8aBnBeB6tFQ"
+  }
+} 
