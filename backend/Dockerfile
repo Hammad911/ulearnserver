@@ -29,7 +29,7 @@ EXPOSE 8000
 
 # Start the application
 CMD ["gunicorn", "src.core.server:app", \
-     "--workers", "1", \
+     "--workers", "4", \
      "--worker-class", "uvicorn.workers.UvicornWorker", \
      "--bind", "0.0.0.0:8000", \
      "--access-logfile", "-", \

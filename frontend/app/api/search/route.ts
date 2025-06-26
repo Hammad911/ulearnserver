@@ -3,6 +3,28 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import { Pinecone } from '@pinecone-database/pinecone'
 import { getCachedSearch, setCachedSearch } from '@/lib/redis'
 
+// Simple in-memory rate limiting (in production, use Redis)
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
+const RATE_LIMIT_WINDOW = 60 * 1000 // 1 minute
+const RATE_LIMIT_MAX = 30 // 30 requests per minute
+
+function checkRateLimit(identifier: string): boolean {
+  const now = Date.now()
+  const userLimit = rateLimitMap.get(identifier)
+  
+  if (!userLimit || now > userLimit.resetTime) {
+    rateLimitMap.set(identifier, { count: 1, resetTime: now + RATE_LIMIT_WINDOW })
+    return true
+  }
+  
+  if (userLimit.count >= RATE_LIMIT_MAX) {
+    return false
+  }
+  
+  userLimit.count++
+  return true
+}
+
 // Initialize with error handling
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!)
 const pc = new Pinecone({
@@ -73,6 +95,17 @@ Answer:`;
 
 export async function POST(req: Request) {
   try {
+    // Rate limiting - use IP address as identifier
+    const forwarded = req.headers.get('x-forwarded-for');
+    const ip = forwarded ? forwarded.split(',')[0] : 'unknown';
+    
+    if (!checkRateLimit(ip)) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Please try again in a minute.' },
+        { status: 429 }
+      );
+    }
+
     const { query, subject } = await req.json()
     
     if (!query) {
