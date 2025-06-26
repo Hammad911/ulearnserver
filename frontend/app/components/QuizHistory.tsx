@@ -51,7 +51,8 @@ export default function QuizHistory({ userId, subject }: QuizHistoryProps) {
       if (data.success && Array.isArray(data.quizzes)) {
         let filtered = data.quizzes;
         if (subject) {
-          filtered = filtered.filter((quiz: Quiz) => quiz.subject?.toLowerCase() === subject.toLowerCase());
+          const normalize = (str: string) => (str || '').replace(/\s+/g, '').toLowerCase();
+          filtered = filtered.filter((quiz: Quiz) => normalize(quiz.subject) === normalize(subject));
         }
         setQuizzes(filtered);
       } else {

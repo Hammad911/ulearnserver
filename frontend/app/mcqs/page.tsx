@@ -3,10 +3,11 @@
 import React from 'react'
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Send, ArrowRight, CheckCircle2, XCircle, History } from 'lucide-react'
+import { Send, ArrowRight, CheckCircle2, XCircle, History, Clock } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import QuizHistory from '../components/QuizHistory'
+import QuizTimer from '../components/QuizTimer'
 
 interface MCQ {
   question: string;
@@ -20,6 +21,7 @@ interface QuizState {
   selectedAnswers: string[];
   showResults: boolean;
   score: number;
+  isTimerActive: boolean;
 }
 
 // Add new interface for quiz submission
@@ -55,7 +57,8 @@ function MCQPageInner() {
     currentQuestion: 0,
     selectedAnswers: [],
     showResults: false,
-    score: 0
+    score: 0,
+    isTimerActive: false
   });
   const [showHistory, setShowHistory] = useState(false);
 
@@ -97,7 +100,8 @@ function MCQPageInner() {
         },
         body: JSON.stringify({ 
           query: input.trim(),
-          subject: subject
+          subject: subject,
+          mcqCount: parseInt(mcqCount)
         }),
       });
 
@@ -134,7 +138,8 @@ function MCQPageInner() {
         currentQuestion: 0,
         selectedAnswers: new Array(mcqs.length).fill(''),
         showResults: false,
-        score: 0
+        score: 0,
+        isTimerActive: true // Start the timer
       });
     } catch (err) {
       console.error('Quiz generation error:', err);
@@ -187,56 +192,68 @@ function MCQPageInner() {
         currentQuestion: prev.currentQuestion + 1
       }));
     } else {
-      // Use the latest selectedAnswers for score calculation
-      const finalSelectedAnswers = [...quizState.selectedAnswers];
-      const score = quizState.mcqs.reduce((acc, mcq, index) => {
-        return acc + (finalSelectedAnswers[index] === mcq.correctAnswer ? 1 : 0);
-      }, 0);
-
-      setQuizState(prev => ({
-        ...prev,
-        showResults: true,
-        score
-      }));
-
-      // Prepare quiz submission data
-      const quizSubmission: QuizSubmission = {
-        subject: subject || '',
-        topic: currentTopic,
-        title: `${subject} Quiz`,
-        questions: quizState.mcqs.map((mcq, index) => ({
-          question_text: mcq.question,
-          options: mcq.options.map(opt => ({
-            option_text: opt,
-            is_correct: opt === mcq.correctAnswer
-          })),
-          user_answer: finalSelectedAnswers[index]
-        })),
-        score: score,
-        email: email || ''
-      };
-
-      // Save quiz results to database
-      try {
-        const response = await fetch('/api/quiz/save', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-user-id': userId || ''
-          },
-          body: JSON.stringify({
-            ...quizSubmission,
-            created_at: getPKTTimestamp() // Add PKT timestamp
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to save quiz results');
-        }
-      } catch (error) {
-        console.error('Error saving quiz results:', error);
-      }
+      await finishQuiz();
     }
+  };
+
+  // Function to finish quiz (used by both manual submission and timer)
+  const finishQuiz = async () => {
+    // Use the latest selectedAnswers for score calculation
+    const finalSelectedAnswers = [...quizState.selectedAnswers];
+    const score = quizState.mcqs.reduce((acc, mcq, index) => {
+      return acc + (finalSelectedAnswers[index] === mcq.correctAnswer ? 1 : 0);
+    }, 0);
+
+    setQuizState(prev => ({
+      ...prev,
+      showResults: true,
+      score,
+      isTimerActive: false // Stop the timer
+    }));
+
+    // Prepare quiz submission data
+    const quizSubmission: QuizSubmission = {
+      subject: subject || '',
+      topic: currentTopic,
+      title: `${subject} Quiz`,
+      questions: quizState.mcqs.map((mcq, index) => ({
+        question_text: mcq.question,
+        options: mcq.options.map(opt => ({
+          option_text: opt,
+          is_correct: opt === mcq.correctAnswer
+        })),
+        user_answer: finalSelectedAnswers[index]
+      })),
+      score: score,
+      email: email || ''
+    };
+
+    // Save quiz results to database
+    try {
+      const response = await fetch('/api/quiz/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId || ''
+        },
+        body: JSON.stringify({
+          ...quizSubmission,
+          created_at: getPKTTimestamp() // Add PKT timestamp
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save quiz results');
+      }
+    } catch (error) {
+      console.error('Error saving quiz results:', error);
+    }
+  };
+
+  // Handle timer expiration
+  const handleTimeUp = async () => {
+    alert('Time is up! Your quiz will be submitted automatically.');
+    await finishQuiz();
   };
 
   const handleRestart = () => {
@@ -245,7 +262,8 @@ function MCQPageInner() {
       currentQuestion: 0,
       selectedAnswers: [],
       showResults: false,
-      score: 0
+      score: 0,
+      isTimerActive: false
     });
   };
 
@@ -287,6 +305,20 @@ function MCQPageInner() {
                   <option value="20">20 MCQs</option>
                 </select>
               </div>
+              
+              {/* Time allocation info */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-center gap-2 text-blue-700">
+                  <Clock className="w-4 h-4" />
+                  <span className="text-sm font-medium">
+                    Time Allocation: {mcqCount} questions = {mcqCount} minutes
+                  </span>
+                </div>
+                <p className="text-xs text-blue-600 mt-1">
+                  Quiz will auto-submit when time expires. You can submit early by clicking "Finish Quiz".
+                </p>
+              </div>
+              
               <button
                 type="submit"
                 disabled={loading || !input.trim()}
@@ -303,6 +335,13 @@ function MCQPageInner() {
           </form>
         ) : (
           <div className="space-y-6 w-full">
+            {/* Timer Component */}
+            <QuizTimer 
+              totalQuestions={quizState.mcqs.length}
+              onTimeUp={handleTimeUp}
+              isActive={quizState.isTimerActive && !quizState.showResults}
+            />
+
             {!quizState.showResults ? (
               <>
                 <div className="bg-gradient-to-r from-[#e0f2fe] via-[#f0f9ff] to-[#bae6fd] p-6 rounded-2xl shadow">

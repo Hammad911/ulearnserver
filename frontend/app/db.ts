@@ -1,6 +1,6 @@
 import mysql from 'mysql2/promise';
 
-// Database connection configuration
+// Singleton connection pool: only create ONCE per app/server
 export const dbConfig = {
   host: process.env.DB_HOST || '',
   port: Number(process.env.DB_PORT) || 22473,
@@ -10,9 +10,9 @@ export const dbConfig = {
   ssl: {
     rejectUnauthorized: false
   },
-  connectTimeout: 20000, // 20 seconds
-  acquireTimeout: 20000, // 20 seconds
-  timeout: 20000, // 20 seconds
+  connectTimeout: 20000,
+  acquireTimeout: 20000,
+  timeout: 20000,
   waitForConnections: true,
   connectionLimit: 20,
   queueLimit: 0,
@@ -20,10 +20,10 @@ export const dbConfig = {
   keepAliveInitialDelay: 10000
 };
 
-// Create a connection pool
+// Create the pool ONCE (never per request)
 export const pool = mysql.createPool(dbConfig);
 
-// Helper function to execute queries with retry logic
+// Always use pool.execute (auto-releases connection)
 export async function executeQuery<T>(query: string, params: any[] = [], maxRetries = 3): Promise<T> {
   let lastError;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -34,10 +34,9 @@ export async function executeQuery<T>(query: string, params: any[] = [], maxRetr
       lastError = error;
       console.error(`Query attempt ${attempt} failed:`, error);
       if (attempt < maxRetries) {
-        // Wait before retrying (exponential backoff)
         await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
       }
     }
   }
   throw lastError;
-} 
+}

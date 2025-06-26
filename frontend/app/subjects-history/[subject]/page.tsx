@@ -7,7 +7,11 @@ import Image from 'next/image';
 export default function SubjectQuizHistoryPage() {
   const params = useParams();
   const router = useRouter();
-  const subject = typeof params.subject === 'string' ? params.subject : Array.isArray(params.subject) ? params.subject[0] : '';
+  const subject = typeof params.subject === 'string'
+    ? decodeURIComponent(params.subject)
+    : Array.isArray(params.subject)
+      ? decodeURIComponent(params.subject[0])
+      : '';
   const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null;
 
   return (
